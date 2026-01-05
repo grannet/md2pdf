@@ -1,0 +1,29 @@
+{
+  "name": "md2pdf",
+  "version": "1.0.0",
+  "description": "Markdown to PDF converter with GFM support",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "md2pdf": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile md2pdf",
+    "build:all": "bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/md2pdf-linux && bun build src/index.ts --compile --target=bun-darwin-arm64 --outfile dist/md2pdf-macos && bun build src/index.ts --compile --target=bun-windows-x64 --outfile dist/md2pdf-windows.exe",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pdfmake": "^0.2.12"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "fontkit": "^2.0.4",
+    "marked": "^17.0.1",
+    "pdfmake": "^0.3.0"
+  }
+}

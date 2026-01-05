@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Build cross-platform binaries
+        run: bun run build:all
+
+      - name: Get version and short SHA
+        id: vars
+        run: |
+          VERSION=$(jq -r .version package.json)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION-$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: md2pdf v${{ steps.vars.outputs.version }} (Build ${{ steps.vars.outputs.short_sha }})
+          body: |
+            ## Downloads
+
+            | Platform | File |
+            |----------|------|
+            | Linux (x64) | `md2pdf-linux` |
+            | macOS (arm64) | `md2pdf-macos` |
+            | Windows (x64) | `md2pdf-windows.exe` |
+
+            ## Usage
+
+            ```bash
+            # Make executable (Linux/macOS)
+            chmod +x md2pdf-linux  # or md2pdf-macos
+
+            # Convert markdown to PDF
+            ./md2pdf-linux document.md -o output.pdf
+            ```
+          files: |
+            dist/md2pdf-linux
+            dist/md2pdf-macos
+            dist/md2pdf-windows.exe
+          generate_release_notes: false
