@@ -32,7 +32,7 @@ export function renderInlineTokens(tokens: Token[], context?: RenderContext): In
     }
   }
 
-  return result.length === 1 ? result[0] : result;
+  return result.length === 1 ? result[0]! : result;
 }
 
 function renderInlineToken(token: Token, context?: RenderContext): StyledText | StyledText[] | string | null {

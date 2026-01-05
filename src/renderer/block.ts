@@ -78,7 +78,7 @@ function renderHeading(token: Tokens.Heading, context: RenderContext): Content {
 function renderParagraph(token: Tokens.Paragraph, context: RenderContext): Content {
   // Check if paragraph contains only a single image
   const tokens = token.tokens ?? [];
-  if (tokens.length === 1 && isImageToken(tokens[0])) {
+  if (tokens.length === 1 && isImageToken(tokens[0]!)) {
     return renderImage(tokens[0] as Tokens.Image, context);
   }
 
@@ -91,7 +91,7 @@ function renderParagraph(token: Tokens.Paragraph, context: RenderContext): Conte
 }
 
 function renderList(token: Tokens.List, context: RenderContext): Content {
-  const items = token.items.map((item) => {
+  const items = token.items.map((item): Content => {
     // Render list item content
     const content: Content[] = [];
 
@@ -126,20 +126,20 @@ function renderList(token: Tokens.List, context: RenderContext): Content {
       }
     }
 
-    return content.length === 1 ? content[0] : { stack: content };
+    return content.length === 1 ? content[0]! : { stack: content };
   });
 
   if (token.ordered) {
     return {
       ol: items,
       margin: STYLES.margins.list,
-    };
+    } as Content;
   }
 
   return {
     ul: items,
     margin: STYLES.margins.list,
-  };
+  } as Content;
 }
 
 function renderCodeBlock(token: Tokens.Code, context: RenderContext): Content {

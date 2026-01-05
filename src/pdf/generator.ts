@@ -294,7 +294,7 @@ export async function generatePDF(
   const pages = pdfDoc.getPages();
 
   if (pages.length > 0) {
-    const firstPage = pages[0];
+    const firstPage = pages[0]!;
     const { width } = firstPage.getSize();
 
     // Set the page height to match content

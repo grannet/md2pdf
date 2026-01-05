@@ -145,7 +145,7 @@ async function loadRemoteImage(
 
     const buffer = await response.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
-    const mimeType = contentType.split(';')[0];
+    const mimeType = contentType.split(';')[0]!;
     const dataUrl = `data:${mimeType};base64,${base64}`;
     const dimensions = getImageDimensions(buffer, mimeType);
 

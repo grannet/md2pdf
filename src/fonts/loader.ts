@@ -18,7 +18,7 @@ function getTTCPostScriptName(fontPath: string): string | null {
   try {
     const font = openSync(fontPath);
     if ('fonts' in font && Array.isArray(font.fonts) && font.fonts.length > 0) {
-      return font.fonts[0].postscriptName || null;
+      return font.fonts[0]!.postscriptName || null;
     }
   } catch {
     return null;
@@ -55,10 +55,10 @@ export async function buildFontSystem(japaneseFont: FontFamily | null): Promise<
         const fontDef = postScriptName ? [fontKey, postScriptName] : fontKey;
 
         fonts[japaneseFont.name] = {
-          normal: fontDef,
-          bold: fontDef,
-          italics: fontDef,
-          bolditalics: fontDef,
+          normal: fontDef as string,
+          bold: fontDef as string,
+          italics: fontDef as string,
+          bolditalics: fontDef as string,
         };
 
         console.log(`Loaded font: ${japaneseFont.name}${postScriptName ? ` (PostScript: ${postScriptName})` : ''}`);
