@@ -58,6 +58,14 @@ jobs:
             # Convert markdown to PDF
             ./md2pdf-linux document.md -o output.pdf
             ```
+
+            ## macOS Note
+
+            macOS Gatekeeper may block execution of downloaded binaries. To allow execution:
+
+            ```bash
+            xattr -d com.apple.quarantine md2pdf-macos
+            ```
           files: |
             dist/md2pdf-linux
             dist/md2pdf-macos
