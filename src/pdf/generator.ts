@@ -1,11 +1,11 @@
-import pdfmake from 'pdfmake';
-import { PDFDocument } from 'pdf-lib';
-import type { TDocumentDefinitions, TFontDictionary } from 'pdfmake/interfaces';
-import type { Content } from '../renderer/types';
-import type { PaperDimensions } from '../config/paper';
-import { MAX_PAGE_HEIGHT } from '../config/paper';
-import { STYLES } from '../config/styles';
-import type { LoadedFonts } from '../fonts/loader';
+import pdfmake from "pdfmake";
+import { PDFDocument } from "pdf-lib";
+import type { TDocumentDefinitions } from "pdfmake/interfaces";
+import type { Content } from "../renderer/types";
+import type { PaperDimensions } from "../config/paper";
+import { MAX_PAGE_HEIGHT } from "../config/paper";
+import { STYLES } from "../config/styles";
+import type { LoadedFonts } from "../fonts/loader";
 
 export interface ImageDimensions {
   width: number;
@@ -16,8 +16,8 @@ export interface GeneratorOptions {
   paper: PaperDimensions;
   fonts: LoadedFonts;
   pageMargins: [number, number, number, number];
-  images: Record<string, string>;  // Image ID -> Base64 data URL
-  imageDimensions: Record<string, ImageDimensions>;  // Image ID -> dimensions
+  images: Record<string, string>; // Image ID -> Base64 data URL
+  imageDimensions: Record<string, ImageDimensions>; // Image ID -> dimensions
 }
 
 // Image fit constraints used in renderer (must match block.ts)
@@ -50,21 +50,24 @@ function calculateImageHeights(
 
   function processContent(items: Content[]) {
     for (const item of items) {
-      if (item && typeof item === 'object') {
-        if ('image' in item) {
+      if (item && typeof item === "object") {
+        if ("image" in item) {
           const imageId = (item as any).image;
           const dims = imageDimensions[imageId];
           if (dims) {
             const renderedHeight = calculateImageHeight(dims);
             // Add image margins (top + bottom)
-            const totalHeight = renderedHeight + STYLES.margins.image[1] + STYLES.margins.image[3];
+            const totalHeight =
+              renderedHeight +
+              STYLES.margins.image[1] +
+              STYLES.margins.image[3];
             heights[imageId] = totalHeight;
           }
         }
-        if ('stack' in item) {
+        if ("stack" in item) {
           processContent((item as any).stack);
         }
-        if ('columns' in item) {
+        if ("columns" in item) {
           processContent((item as any).columns);
         }
       }
@@ -79,7 +82,7 @@ function calculateImageHeights(
 function deepCopyFonts(fonts: Record<string, any>): Record<string, any> {
   const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(fonts)) {
-    if (typeof value === 'object' && value !== null) {
+    if (typeof value === "object" && value !== null) {
       result[key] = {};
       for (const [k, v] of Object.entries(value)) {
         // Deep copy arrays (for TTC [path, postscriptName] format)
@@ -99,7 +102,7 @@ function setupFonts(fonts: LoadedFonts): void {
     const vfs = (pdfmake as any).virtualfs;
     if (vfs) {
       for (const [filename, data] of Object.entries(fonts.vfs)) {
-        vfs.writeFileSync(filename, Buffer.from(data, 'base64'));
+        vfs.writeFileSync(filename, Buffer.from(data, "base64"));
       }
     }
   }
@@ -108,28 +111,28 @@ function setupFonts(fonts: LoadedFonts): void {
   // Use deep copy to avoid pdfmake's URL resolver mutating our font arrays
   const allFonts = deepCopyFonts({
     Courier: {
-      normal: 'Courier',
-      bold: 'Courier-Bold',
-      italics: 'Courier-Oblique',
-      bolditalics: 'Courier-BoldOblique',
+      normal: "Courier",
+      bold: "Courier-Bold",
+      italics: "Courier-Oblique",
+      bolditalics: "Courier-BoldOblique",
     },
     Helvetica: {
-      normal: 'Helvetica',
-      bold: 'Helvetica-Bold',
-      italics: 'Helvetica-Oblique',
-      bolditalics: 'Helvetica-BoldOblique',
+      normal: "Helvetica",
+      bold: "Helvetica-Bold",
+      italics: "Helvetica-Oblique",
+      bolditalics: "Helvetica-BoldOblique",
     },
     Times: {
-      normal: 'Times-Roman',
-      bold: 'Times-Bold',
-      italics: 'Times-Italic',
-      bolditalics: 'Times-BoldItalic',
+      normal: "Times-Roman",
+      bold: "Times-Bold",
+      italics: "Times-Italic",
+      bolditalics: "Times-BoldItalic",
     },
     Symbol: {
-      normal: 'Symbol',
+      normal: "Symbol",
     },
     ZapfDingbats: {
-      normal: 'ZapfDingbats',
+      normal: "ZapfDingbats",
     },
     // Deep copy custom fonts to avoid mutation
     ...deepCopyFonts(fonts.fonts),
@@ -163,7 +166,7 @@ function createDocDefinition(
 
 interface MeasurementResult {
   maxY: number;
-  measuredImageHeights: Record<string, number>;  // Actually stores image top positions
+  measuredImageHeights: Record<string, number>; // Actually stores image top positions
 }
 
 // Measure content height using first pass rendering
@@ -181,10 +184,20 @@ async function measureContentHeight(
   const measuredImageHeights: Record<string, number> = {};
 
   const measureDoc: TDocumentDefinitions = {
-    ...createDocDefinition(content, width, MAX_PAGE_HEIGHT, defaultFont, pageMargins, images),
+    ...createDocDefinition(
+      content,
+      width,
+      MAX_PAGE_HEIGHT,
+      defaultFont,
+      pageMargins,
+      images
+    ),
     pageBreakBefore: (currentNode: any) => {
       // Track page count from node's page number
-      if (currentNode.startPosition && currentNode.startPosition.pageNumber > pageCount) {
+      if (
+        currentNode.startPosition &&
+        currentNode.startPosition.pageNumber > pageCount
+      ) {
         pageCount = currentNode.startPosition.pageNumber;
       }
 
@@ -192,13 +205,17 @@ async function measureContentHeight(
       if (currentNode.image) {
         // pdfmake doesn't report image height in callback, but we can use position
         const imageTop = currentNode.startPosition?.top || 0;
-        measuredImageHeights[currentNode.image] = imageTop;  // Store top position for analysis
+        measuredImageHeights[currentNode.image] = imageTop; // Store top position for analysis
       }
 
       // Track the maximum Y position, accounting for multiple pages
       if (currentNode.startPosition) {
-        const pageOffset = (currentNode.startPosition.pageNumber - 1) * pageHeightUsable;
-        const nodeBottom = pageOffset + currentNode.startPosition.top + (currentNode.height || 0);
+        const pageOffset =
+          (currentNode.startPosition.pageNumber - 1) * pageHeightUsable;
+        const nodeBottom =
+          pageOffset +
+          currentNode.startPosition.top +
+          (currentNode.height || 0);
         maxY = Math.max(maxY, nodeBottom);
       }
       // Never insert page breaks during measurement
@@ -232,10 +249,13 @@ export async function generatePDF(
 
   // Calculate per-image heights based on actual dimensions
   const imageHeights = calculateImageHeights(content, imageDimensions);
-  const totalImageHeight = Object.values(imageHeights).reduce((a, b) => a + b, 0);
+  const totalImageHeight = Object.values(imageHeights).reduce(
+    (a, b) => a + b,
+    0
+  );
 
   // Get image top positions from measurement (imageId -> top position)
-  const imagePositions = measurement.measuredImageHeights;  // Actually stores top positions
+  const imagePositions = measurement.measuredImageHeights; // Actually stores top positions
   const hasImagePositions = Object.keys(imagePositions).length > 0;
 
   // Determine content height
@@ -272,7 +292,11 @@ export async function generatePDF(
   const bottomPadding = 25; // Adjustment to balance top/bottom visual margins
   const targetHeight = topMargin + contentHeight + bottomMargin + bottomPadding;
 
-  console.log(`Content height: ${Math.round(contentHeight)}pt, Page height: ${Math.round(targetHeight)}pt`);
+  console.log(
+    `Content height: ${Math.round(contentHeight)}pt, Page height: ${Math.round(
+      targetHeight
+    )}pt`
+  );
 
   // Pass 2: Generate PDF with maximum height (ensures no page breaks)
   const docDefinition = createDocDefinition(
