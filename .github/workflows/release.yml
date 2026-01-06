@@ -26,6 +26,11 @@ jobs:
       - name: Build cross-platform binaries
         run: bun run build:all
 
+      - name: Package Quick Action for macOS
+        run: |
+          cd QuickAction
+          zip -r ../dist/md2pdf-quick-action.workflow.zip md2pdf.workflow
+
       - name: Get version and short SHA
         id: vars
         run: |
@@ -66,8 +71,19 @@ jobs:
             ```bash
             xattr -d com.apple.quarantine md2pdf-macos
             ```
+
+            ## Homebrew (macOS)
+
+            ```bash
+            brew tap grannet/md2pdf
+            brew install md2pdf
+
+            # Optional: Install Finder Quick Action
+            brew install --cask md2pdf-quick-action
+            ```
           files: |
             dist/md2pdf-linux
             dist/md2pdf-macos
             dist/md2pdf-windows.exe
+            dist/md2pdf-quick-action.workflow.zip
           generate_release_notes: false
