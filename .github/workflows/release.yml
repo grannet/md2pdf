@@ -10,6 +10,9 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      tag: ${{ steps.vars.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,3 +90,65 @@ jobs:
             dist/md2pdf-windows.exe
             dist/md2pdf-quick-action.workflow.zip
           generate_release_notes: false
+
+  update-homebrew:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for release assets
+        run: sleep 30
+
+      - name: Download release assets and calculate SHA256
+        id: sha256
+        run: |
+          TAG="${{ needs.build-and-release.outputs.tag }}"
+
+          # Download and calculate SHA256 for macOS binary
+          curl -sL "https://github.com/grannet/md2pdf/releases/download/${TAG}/md2pdf-macos" -o md2pdf-macos
+          MACOS_SHA256=$(sha256sum md2pdf-macos | cut -d' ' -f1)
+          echo "macos=${MACOS_SHA256}" >> $GITHUB_OUTPUT
+
+          # Download and calculate SHA256 for Quick Action
+          curl -sL "https://github.com/grannet/md2pdf/releases/download/${TAG}/md2pdf-quick-action.workflow.zip" -o quick-action.zip
+          QUICK_ACTION_SHA256=$(sha256sum quick-action.zip | cut -d' ' -f1)
+          echo "quick_action=${QUICK_ACTION_SHA256}" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.HOMEBREW_DEPLOY_KEY }}
+
+      - name: Clone homebrew-md2pdf
+        run: |
+          git clone git@github.com:grannet/homebrew-md2pdf.git homebrew-tap
+
+      - name: Update Formula and Cask
+        run: |
+          VERSION="${{ needs.build-and-release.outputs.version }}"
+          TAG="${{ needs.build-and-release.outputs.tag }}"
+          MACOS_SHA256="${{ steps.sha256.outputs.macos }}"
+          QUICK_ACTION_SHA256="${{ steps.sha256.outputs.quick_action }}"
+
+          # Update Formula - version
+          sed -i "s/version \"[^\"]*\"/version \"${VERSION}\"/" homebrew-tap/Formula/grannet-md2pdf.rb
+
+          # Update Formula - URL
+          sed -i "s|releases/download/v[^/]*/md2pdf-macos|releases/download/${TAG}/md2pdf-macos|g" homebrew-tap/Formula/grannet-md2pdf.rb
+
+          # Update Formula - SHA256 (複数箇所あるため全置換)
+          sed -i "s/sha256 \"[a-f0-9]\{64\}\"/sha256 \"${MACOS_SHA256}\"/g" homebrew-tap/Formula/grannet-md2pdf.rb
+
+          # Update Cask - version
+          sed -i "s/version \"[^\"]*\"/version \"${VERSION}\"/" homebrew-tap/Casks/grannet-md2pdf-quick-action.rb
+
+          # Update Cask - SHA256
+          sed -i "s/sha256 \"[a-f0-9]\{64\}\"/sha256 \"${QUICK_ACTION_SHA256}\"/" homebrew-tap/Casks/grannet-md2pdf-quick-action.rb
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/ Casks/
+          git diff --staged --quiet || git commit -m "Update to ${{ needs.build-and-release.outputs.tag }}"
+          git push
