@@ -76,10 +76,10 @@ jobs:
 
             ```bash
             brew tap grannet/md2pdf
-            brew install md2pdf
+            brew install grannet-md2pdf
 
             # Optional: Install Finder Quick Action
-            brew install --cask md2pdf-quick-action
+            brew install --cask grannet-md2pdf-quick-action
             ```
           files: |
             dist/md2pdf-linux
