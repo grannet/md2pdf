@@ -9,7 +9,8 @@ permissions:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    # macOS バイナリの署名検証 (codesign) と起動確認を行うため macOS ランナーでビルドする
+    runs-on: macos-latest
     outputs:
       version: ${{ steps.vars.outputs.version }}
       tag: ${{ steps.vars.outputs.tag }}
@@ -19,6 +20,10 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          # 1.3.12〜1.4.0 の --compile 出力は署名が壊れており macOS で起動しない (oven-sh/bun#29120, #32159)。
+          # 後段の codesign --verify --strict とスモークテストで壊れたビルドはリリース前に止まる
+          bun-version: latest
 
       - name: Install dependencies
         run: bun install
@@ -28,6 +33,14 @@ jobs:
 
       - name: Build cross-platform binaries
         run: bun run build:all
+
+      - name: Ad-hoc sign and verify macOS binary
+        run: |
+          codesign --force --sign - dist/md2pdf-macos
+          codesign --verify --strict --verbose dist/md2pdf-macos
+          printf "# smoke\n\nhello\n" > /tmp/smoke.md
+          ./dist/md2pdf-macos /tmp/smoke.md -o /tmp/smoke.pdf
+          test -s /tmp/smoke.pdf
 
       - name: Package Quick Action for macOS
         run: |
@@ -104,12 +117,12 @@ jobs:
           TAG="${{ needs.build-and-release.outputs.tag }}"
 
           # Download and calculate SHA256 for macOS binary
-          curl -sL "https://github.com/grannet/md2pdf/releases/download/${TAG}/md2pdf-macos" -o md2pdf-macos
+          curl -fsSL "https://github.com/grannet/md2pdf/releases/download/${TAG}/md2pdf-macos" -o md2pdf-macos
           MACOS_SHA256=$(sha256sum md2pdf-macos | cut -d' ' -f1)
           echo "macos=${MACOS_SHA256}" >> $GITHUB_OUTPUT
 
           # Download and calculate SHA256 for Quick Action
-          curl -sL "https://github.com/grannet/md2pdf/releases/download/${TAG}/md2pdf-quick-action.workflow.zip" -o quick-action.zip
+          curl -fsSL "https://github.com/grannet/md2pdf/releases/download/${TAG}/md2pdf-quick-action.workflow.zip" -o quick-action.zip
           QUICK_ACTION_SHA256=$(sha256sum quick-action.zip | cut -d' ' -f1)
           echo "quick_action=${QUICK_ACTION_SHA256}" >> $GITHUB_OUTPUT
 
@@ -129,17 +142,23 @@ jobs:
           MACOS_SHA256="${{ steps.sha256.outputs.macos }}"
           QUICK_ACTION_SHA256="${{ steps.sha256.outputs.quick_action }}"
 
+          # Formula / Cask の version は <package.json の version>.<run_number>。
+          # タグの SHA は順序を持たず brew upgrade が新旧を判定できないため、version には使わない。
+          # Formula の URL にはタグを直接書き込む。Cask は "<version>,<タグ (先頭の v を除く)>" の
+          # CSV にして、URL を version.csv.second から組み立てる
+          BREW_VERSION="${VERSION}.${{ github.run_number }}"
+
           # Update Formula - version
-          sed -i "s/version \"[^\"]*\"/version \"${VERSION}\"/" homebrew-tap/Formula/grannet-md2pdf.rb
+          sed -i "s/version \"[^\"]*\"/version \"${BREW_VERSION}\"/" homebrew-tap/Formula/grannet-md2pdf.rb
 
           # Update Formula - URL
           sed -i "s|releases/download/v[^/]*/md2pdf-macos|releases/download/${TAG}/md2pdf-macos|g" homebrew-tap/Formula/grannet-md2pdf.rb
 
-          # Update Formula - SHA256 (複数箇所あるため全置換)
+          # Update Formula - SHA256
           sed -i "s/sha256 \"[a-f0-9]\{64\}\"/sha256 \"${MACOS_SHA256}\"/g" homebrew-tap/Formula/grannet-md2pdf.rb
 
           # Update Cask - version
-          sed -i "s/version \"[^\"]*\"/version \"${VERSION}\"/" homebrew-tap/Casks/grannet-md2pdf-quick-action.rb
+          sed -i "s/version \"[^\"]*\"/version \"${BREW_VERSION},${TAG#v}\"/" homebrew-tap/Casks/grannet-md2pdf-quick-action.rb
 
           # Update Cask - SHA256
           sed -i "s/sha256 \"[a-f0-9]\{64\}\"/sha256 \"${QUICK_ACTION_SHA256}\"/" homebrew-tap/Casks/grannet-md2pdf-quick-action.rb
